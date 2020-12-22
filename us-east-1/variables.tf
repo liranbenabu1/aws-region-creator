@@ -54,9 +54,9 @@ variable "buy_new_zone" {
 }
 
 variable "set_dns_name" {
-  default = "test.bizzabo-devops.com"
+  default = "test.bizzabo-devops.io"
 }
 
 variable "route53_zone" {
-  default = "bizzabo-devops.com"
+  default = "bizzabo-devops.io"
 }

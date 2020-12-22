@@ -11,7 +11,7 @@ module "vpc" {
   accessable-sg           = true
   addToRoute53            = true
   buy_new_zone            = true
-  set_dns_name            = "var.set_dns_name"
-  route53_zone            = "var.route53_zone"
+  set_dns_name            = var.set_dns_name
+  route53_zone            = var.route53_zone
 }
 

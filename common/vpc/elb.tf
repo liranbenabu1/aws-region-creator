@@ -1,31 +1,74 @@
-resource "aws_elb" "elb" {
-  name               = "elb-prod"
-  availability_zones = var.private_zones
-  security_groups = [ aws_security_group.world_access.0.id]
-
-  listener {
-    instance_port     = 80
-    instance_protocol = "http"
-    lb_port           = 8080
-    lb_protocol       = "http"
+resource "aws_eip" "eip_nlb0" {
+  tags    = {
+    Name  = "first-elb-prod"
+    env   = var.env
   }
+}
 
-  listener {
-  instance_port      = 443
-  instance_protocol  = "https"
-  lb_port            = 8080
-  lb_protocol        = "http"
+resource "aws_eip" "eip_nlb1" {
+  tags    = {
+    Name  = "first-elb-prod"
+    env   = var.env
   }
+}
 
-  health_check {
-  healthy_threshold   = 2
-  unhealthy_threshold = 2
-  timeout             = 3
-  target              = "HTTP:8000/"
-  interval            = 30
+resource "aws_lb" "load_balancer" {
+  name                              = "elb-prod"
+  load_balancer_type                = "network"
+  subnet_mapping {
+    subnet_id = aws_subnet.private_subnet.0.id
+    allocation_id = aws_eip.eip_nlb0.id
   }
-    tags = {
-    Name = "${var.env}-elb"
+  subnet_mapping {
+    subnet_id = aws_subnet.private_subnet.1.id
+    allocation_id = aws_eip.eip_nlb1.id
+  }
+  tags = {
     env  = var.env
   }
+}
+
+resource "aws_lb_listener" "listener" {
+  load_balancer_arn       = aws_lb.load_balancer.arn
+  for_each = var.listner_ports
+      port                = each.key
+      protocol            = each.value
+      default_action {
+        target_group_arn  = aws_lb_target_group.tg[each.key].arn
+        type              = "forward"
+      }
+}
+
+resource "aws_lb_target_group" "tg" {
+  for_each = var.listner_ports
+    name                  = "${var.env}-tg-${each.key}"
+    port                  = each.key
+    protocol              = each.value
+  vpc_id                  = aws_vpc.vpc.id
+  target_type             = "instance"
+  deregistration_delay    = 90
+health_check {
+    interval            = 30
+    port                = 8080
+    protocol            = "TCP"
+    healthy_threshold   = 3
+    unhealthy_threshold = 3
+  }
+  tags = {
+     env  = var.env
+  }
+}
+
+resource "aws_lb_target_group_attachment" "tga1" {
+  for_each = var.listner_ports
+    target_group_arn  = aws_lb_target_group.tg[each.key].arn
+    port              = each.key
+  target_id           = aws_instance.web.0.id
+}
+
+resource "aws_lb_target_group_attachment" "tga2" {
+  for_each = var.listner_ports
+    target_group_arn  = aws_lb_target_group.tg[each.key].arn
+    port              = each.key
+  target_id           = aws_instance.web.1.id
 }
